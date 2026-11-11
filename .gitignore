@@ -1,4 +1,6 @@
 /bin/
+/.run/
+/logs/
 /.env
 *.exe
 coverage.out
