@@ -50,6 +50,20 @@ flowchart LR
 前置条件：Go 1.27、PostgreSQL 18。当前机器数据库安装在
 `D:\PostgreSQL\18`，服务名为 `postgresql-x64-18`。
 
+### 一键启动与关闭
+
+直接双击项目根目录的 `start.bat`。脚本会自动：
+
+- 从 `.env.example` 创建本地 `.env`（如果尚不存在）
+- 启动本机 PostgreSQL 18 服务（如果未运行）
+- 编译并以隐藏窗口启动 LinkPulse
+- 等待 `/readyz` 成功后打开浏览器
+- 把 PID、日志路径写入 `.run/server.json`
+
+停止时双击 `stop.bat`。脚本会校验 PID 对应的确实是本项目的
+`bin\linkpulse.exe`，等待最多 2 秒让点击批次落库，然后关闭进程，避免误杀其他
+程序。运行日志保存在 `logs/`，两个运行时目录都已加入 `.gitignore`。
+
 创建本地角色和数据库：
 
 ```powershell
