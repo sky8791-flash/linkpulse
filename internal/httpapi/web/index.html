@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LinkPulse 短链分析服务演示">
+  <title>LinkPulse · 短链分析</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">GO · POSTGRESQL · CACHE</p>
+        <h1>LinkPulse</h1>
+        <p class="lede">短链跳转保持轻快，点击分析在后台批量落盘。</p>
+      </div>
+      <div class="hero-mark" aria-hidden="true">LP</div>
+    </header>
+
+    <section class="panel auth-panel">
+      <div>
+        <h2>连接管理接口</h2>
+        <p class="muted">API Key 只保存在当前页面内存中，不写入浏览器存储。</p>
+      </div>
+      <div class="auth-controls">
+        <label class="sr-only" for="api-key">API Key</label>
+        <input id="api-key" type="password" autocomplete="off" placeholder="输入 API Key">
+        <button id="connect-button" class="button primary" type="button">连接并刷新</button>
+      </div>
+    </section>
+
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+    <main class="workspace">
+      <section class="panel create-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">NEW LINK</p>
+            <h2>创建短链</h2>
+          </div>
+          <a href="/openapi.yaml" class="text-link">OpenAPI</a>
+        </div>
+        <form id="create-form">
+          <label for="target-url">目标 URL</label>
+          <input id="target-url" name="target_url" type="url" required
+                 placeholder="https://example.com/articles/go-concurrency">
+
+          <div class="field-grid">
+            <div>
+              <label for="custom-alias">自定义别名 <span class="muted">（可选）</span></label>
+              <input id="custom-alias" name="custom_alias" type="text" minlength="4" maxlength="32"
+                     pattern="[A-Za-z0-9_-]+" placeholder="go-notes">
+            </div>
+            <div>
+              <label for="expires-at">过期时间 <span class="muted">（可选）</span></label>
+              <input id="expires-at" name="expires_at" type="datetime-local">
+            </div>
+          </div>
+
+          <button class="button primary full" type="submit">生成短链</button>
+        </form>
+      </section>
+
+      <section class="panel links-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">LIBRARY</p>
+            <h2>链接列表</h2>
+          </div>
+          <button id="refresh-button" class="button ghost" type="button">刷新</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>短码</th>
+                <th>目标</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="link-list">
+              <tr><td colspan="4" class="empty-state">连接后加载链接</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <section id="stats-panel" class="panel stats-panel" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">LAST 14 DAYS</p>
+          <h2>访问分析 <span id="stats-code" class="code-badge"></span></h2>
+        </div>
+        <button id="close-stats" class="button ghost" type="button">关闭</button>
+      </div>
+
+      <div class="metric-grid">
+        <article class="metric">
+          <span>总点击</span>
+          <strong id="total-clicks">0</strong>
+        </article>
+        <article class="metric">
+          <span>唯一访客</span>
+          <strong id="unique-visitors">0</strong>
+        </article>
+      </div>
+
+      <div class="analytics-grid">
+        <article>
+          <h3>每日趋势</h3>
+          <div id="daily-chart" class="bar-chart" aria-label="每日点击趋势"></div>
+        </article>
+        <article>
+          <h3>访问设备</h3>
+          <ul id="device-list" class="rank-list"></ul>
+        </article>
+        <article>
+          <h3>来源域名</h3>
+          <ul id="referrer-list" class="rank-list"></ul>
+        </article>
+      </div>
+    </section>
+
+    <footer>
+      <span>LinkPulse</span>
+      <span>标准库 HTTP · pgx · PostgreSQL</span>
+    </footer>
+  </div>
+</body>
+</html>
