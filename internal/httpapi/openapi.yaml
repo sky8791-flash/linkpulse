@@ -1,0 +1,257 @@
+openapi: 3.0.3
+info:
+  title: LinkPulse API
+  version: 1.0.0
+  description: |
+    单租户短链与分析服务。管理接口需要
+    `Authorization: Bearer <API_KEY>`，短链跳转公开。
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/links:
+    get:
+      summary: 分页查询短链
+      parameters:
+        - name: cursor
+          in: query
+          schema: { type: integer, minimum: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: 短链列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Link" }
+                  next_cursor:
+                    type: integer
+                    nullable: true
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      summary: 创建短链
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_url]
+              properties:
+                target_url:
+                  type: string
+                  format: uri
+                  maxLength: 2048
+                custom_alias:
+                  type: string
+                  pattern: "^[A-Za-z0-9_-]{4,32}$"
+                expires_at:
+                  type: string
+                  format: date-time
+                  nullable: true
+      responses:
+        "201":
+          description: 创建成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Link" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/v1/links/{code}:
+    parameters:
+      - $ref: "#/components/parameters/Code"
+    get:
+      summary: 获取短链详情
+      responses:
+        "200":
+          description: 短链详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Link" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      summary: 修改目标地址、过期时间或启用状态
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                target_url:
+                  type: string
+                  format: uri
+                  maxLength: 2048
+                expires_at:
+                  type: string
+                  format: date-time
+                  nullable: true
+                is_active:
+                  type: boolean
+      responses:
+        "200":
+          description: 修改成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Link" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      summary: 软删除短链
+      responses:
+        "204":
+          description: 已删除；重复删除同样返回 204
+  /api/v1/links/{code}/stats:
+    parameters:
+      - $ref: "#/components/parameters/Code"
+      - name: from
+        in: query
+        schema: { type: string, format: date }
+      - name: to
+        in: query
+        schema: { type: string, format: date }
+    get:
+      summary: 查询按天聚合的点击统计
+      description: 默认最近 7 天，范围最多 90 天。唯一访客是 HMAC 访客标识的近似估算。
+      responses:
+        "200":
+          description: 点击统计
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClickStats" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /{code}:
+    get:
+      summary: 公开短链跳转
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Code"
+      responses:
+        "302":
+          description: 跳转到目标 URL
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "410": { $ref: "#/components/responses/Gone" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /healthz:
+    get:
+      summary: 存活检查
+      security: []
+      responses:
+        "200":
+          description: 进程存活
+  /readyz:
+    get:
+      summary: 就绪检查
+      security: []
+      responses:
+        "200":
+          description: PostgreSQL 可用
+        "503":
+          description: PostgreSQL 不可用
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    Code:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{4,32}$"
+  schemas:
+    Link:
+      type: object
+      required: [code, short_url, target_url, expires_at, is_active, created_at, updated_at]
+      properties:
+        code: { type: string }
+        short_url: { type: string, format: uri }
+        target_url: { type: string, format: uri }
+        expires_at: { type: string, format: date-time, nullable: true }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ClickStats:
+      type: object
+      properties:
+        code: { type: string }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        total_clicks: { type: integer, format: int64 }
+        unique_visitors: { type: integer, format: int64 }
+        referrers:
+          type: array
+          items: { $ref: "#/components/schemas/Breakdown" }
+        devices:
+          type: array
+          items: { $ref: "#/components/schemas/Breakdown" }
+        daily:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              clicks: { type: integer, format: int64 }
+              unique_visitors: { type: integer, format: int64 }
+    Breakdown:
+      type: object
+      properties:
+        name: { type: string }
+        clicks: { type: integer, format: int64 }
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+  responses:
+    BadRequest:
+      description: 请求参数不合法
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: API Key 无效
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: 短链不存在
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: 短码冲突
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Gone:
+      description: 短链已过期或停用
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: 请求过于频繁
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
